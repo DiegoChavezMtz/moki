@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+coverage/
+.env*
+!.env.example
+*.tsbuildinfo
+.DS_Store
+next-env.d.ts
+.vercel/
+AGENTS.md
+ARCHITECTURE.md
+CLAUDE.md
+FOUNDATION.md
+/prototipo

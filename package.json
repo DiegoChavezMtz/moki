@@ -1,0 +1,38 @@
+{
+  "name": "moki",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test:auth": "node --test tests/auth/*.test.ts",
+    "test:builder": "node --test tests/builder/*.test.ts",
+    "typecheck:core": "tsc --project tsconfig.core.json",
+    "test": "node --conditions=react-server --test tests/core/*.test.ts tests/adapters/*.test.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "check:architecture": "node scripts/check-architecture.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "@fontsource-variable/montserrat": "^5.3.0",
+    "@supabase/ssr": "^0.12.6",
+    "@supabase/supabase-js": "^2.115.0",
+    "mammoth": "^1.12.2",
+    "next": "^16.3.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "^0.0.1",
+    "unpdf": "^1.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "typescript": "^6.0.3"
+  }
+}
