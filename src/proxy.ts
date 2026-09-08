@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/registro", "/recuperar-contrasena", "/cambiar-contrasena"]);
-const AUTH_ENTRY_PATHS = new Set(["/login", "/registro", "/recuperar-contrasena"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/registro"]);
+const AUTH_ENTRY_PATHS = new Set(["/login", "/registro"]);
 
 function requiredEnvironment(name: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"): string {
   const value = process.env[name]?.trim();

@@ -1,3 +1,2 @@
-import { AuthShell } from "../../features/auth/components/organisms/auth-shell";
-import { AuthForm } from "../../features/auth/components/organisms/auth-form";
-export default function Page() { return <AuthShell><AuthForm mode="password" /></AuthShell>; }
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/login"); }

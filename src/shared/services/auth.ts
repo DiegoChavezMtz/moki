@@ -2,7 +2,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AuthUser = { id: string; email: string };
-type AuthGateway = Pick<SupabaseClient["auth"], "signUp" | "signInWithPassword" | "signOut" | "resetPasswordForEmail" | "updateUser" | "getUser">;
+type AuthGateway = Pick<SupabaseClient["auth"], "signUp" | "signInWithPassword" | "signOut" | "getUser">;
 
 export class AuthServiceError extends Error {
   constructor(message: string) { super(message); this.name = "AuthServiceError"; }
@@ -26,11 +26,11 @@ function failure(error: { code?: string; status?: number } | null): void {
 /** Autenticación fuera del core; esta parte no consulta public.profiles. */
 export function createAuthService(auth: AuthGateway) {
   return {
-    async register(name: string, email: string, password: string, redirectTo: string): Promise<{ user: AuthUser; confirmationRequired: boolean }> {
-      const { data, error } = await auth.signUp({ email: email.trim(), password, options: { data: { name: name.trim() }, emailRedirectTo: redirectTo } });
+    async register(name: string, email: string, password: string): Promise<AuthUser> {
+      const { data, error } = await auth.signUp({ email: email.trim(), password, options: { data: { name: name.trim() } } });
       failure(error);
-      if (!data.user) throw new AuthServiceError("No pudimos crear tu cuenta.");
-      return { user: { id: data.user.id, email: data.user.email ?? "" }, confirmationRequired: !data.session };
+      if (!data.user || !data.session) throw new AuthServiceError("El registro directo todavía no está configurado. Inténtalo más tarde.");
+      return { id: data.user.id, email: data.user.email ?? "" };
     },
     async login(email: string, password: string): Promise<AuthUser> {
       const { data, error } = await auth.signInWithPassword({ email: email.trim(), password });
@@ -46,14 +46,6 @@ export function createAuthService(auth: AuthGateway) {
       if (error && (error.name === "AuthSessionMissingError" || error.code === "session_not_found")) return null;
       failure(error);
       return data.user ? { id: data.user.id, email: data.user.email ?? "" } : null;
-    },
-    async recoverPassword(email: string, redirectTo: string): Promise<void> {
-      const { error } = await auth.resetPasswordForEmail(email.trim(), { redirectTo }); failure(error);
-    },
-    async changePassword(password: string): Promise<void> {
-      const { data, error: userError } = await auth.getUser(); failure(userError);
-      if (!data.user) throw new AuthServiceError("Abre el enlace de recuperación o inicia sesión para cambiar tu contraseña.");
-      const { error } = await auth.updateUser({ password }); failure(error);
     },
   };
 }
@@ -71,8 +63,6 @@ function authService() {
 }
 
 export const login = (email: string, password: string) => authService().login(email, password);
-export const register = (name: string, email: string, password: string) => authService().register(name, email, password, new URL("/login", window.location.origin).href);
+export const register = (name: string, email: string, password: string) => authService().register(name, email, password);
 export const logout = () => authService().logout();
 export const currentUser = () => authService().currentUser();
-export const recoverPassword = (email: string) => authService().recoverPassword(email, new URL("/cambiar-contrasena", window.location.origin).href);
-export const changePassword = (password: string) => authService().changePassword(password);
