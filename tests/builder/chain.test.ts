@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { moveStep, validateDraft, hasErrors } from "../../src/features/builder/utils/chain.ts";
+import { catalog, moveStep, validateDraft, hasErrors } from "../../src/features/builder/utils/chain.ts";
 import { previewChain } from "../../src/features/builder/services/preview.ts";
 const steps = ["a", "b", "c"].map((id) => ({ id, blockType: "escribir", instruction: `Instrucción ${id}` }));
 test("las ranuras de arrastre mueven arriba, abajo y al final sin perder texto", () => {
@@ -19,6 +19,10 @@ test("guardar exige ambos campos y probar exige instrucciones en toda la cadena"
   const invalid = validateDraft({ ...draft, steps: [...steps, { ...steps[0], id: "d", instruction: " " }] }, "test");
   assert.equal(invalid.steps.d, "Agrega instrucciones al bloque 4.");
   assert.ok(validateDraft({ ...draft, steps: [] }, "test").chain);
+});
+test("cada bloque disponible explica en lenguaje simple para qué sirve", () => {
+  assert.equal(catalog.length, 5);
+  assert.ok(catalog.every((block) => block.description.length > 20));
 });
 test("el pulso recorre en orden y la respuesta declara la simulación", async () => {
   const events: (string | null)[] = [];

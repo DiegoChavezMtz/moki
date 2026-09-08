@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Fragment, useRef, useState, type DragEvent } from "react";
-import logo from "../../../../../marca/MokiLogo2.png";
+import logo from "../../../../../marca/MokiLogo2-transparente.png";
 import { useBuilder } from "../../hooks/use-builder";
 import type { DragPayload } from "../../utils/chain";
 import { StepCard } from "../molecules/step-card";

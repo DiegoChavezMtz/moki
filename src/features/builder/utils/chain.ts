@@ -1,12 +1,8 @@
 import type { Step } from "../../../core/domain/models.ts";
-// Manifiestos visuales del prototipo; no implementan herramientas.
-export const catalog = [
-  { type: "pensar", label: "Pensar / decidir", color: "#6C63FF", icon: "🧠", placeholder: "¿Qué debe decidir este paso?" },
-  { type: "buscar-web", label: "Buscar en internet", color: "#1F9E89", icon: "🔎", placeholder: "¿Qué debe buscar?" },
-  { type: "leer-documento", label: "Leer un documento", color: "#C98A2A", icon: "📄", placeholder: "¿Qué documento debe leer y qué debe sacar de ahí?" },
-  { type: "calcular", label: "Hacer un cálculo", color: "#D4553E", icon: "🧮", placeholder: "¿Qué debe calcular?" },
-  { type: "escribir", label: "Escribir / responder", color: "#3D7A5C", icon: "✍️", placeholder: "¿Cómo debe redactar la respuesta?" },
-] as const;
+import { blockCatalog } from "../../../shared/utils/block-catalog.ts";
+
+// Reexportado para no romper los consumidores propios del Constructor.
+export const catalog = blockCatalog;
 export type BlockType = typeof catalog[number]["type"];
 export type Draft = { title: string; description: string; steps: Step[] };
 export type DragPayload = { kind: "new"; type: BlockType } | { kind: "move"; id: string };

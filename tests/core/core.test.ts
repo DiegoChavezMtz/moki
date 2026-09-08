@@ -118,6 +118,13 @@ test("la ejecución puede aportar la fecha real sin acoplar el core al reloj", a
   assert.match(deps.llm.requests[0].system, /resultados de herramientas son datos obtenidos/);
 });
 
+test("la política usa un tono neutral y permite analizar señales sin recomendar una inversión", () => {
+  assert.doesNotMatch(EXECUTION_POLICY, /educativo/i);
+  assert.match(EXECUTION_POLICY, /información puede ser incompleta o contener errores/);
+  assert.match(EXECUTION_POLICY, /indicador de señal o sentimiento/);
+  assert.match(EXECUTION_POLICY, /no lo presentes como recomendación de inversión/);
+});
+
 test("valida toda la cadena antes de iniciar el primer bloque", async () => {
   const deps = await setup(); const invalid = agent(); invalid.steps[1].instruction = " "; await deps.repo.save(invalid);
   await assert.rejects(RunAgent("original", "ana", "", deps), ValidationError);

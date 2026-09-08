@@ -3,7 +3,7 @@ import "@fontsource-variable/montserrat";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Moki · Constructor de agentes",
+  title: "Moki · Crea agentes paso a paso",
   description: "Tu primera herramienta para crear agentes de IA, paso a paso y en español.",
 };
 

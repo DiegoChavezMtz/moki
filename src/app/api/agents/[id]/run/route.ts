@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createBuscarWeb, readBraveSearchConfig } from "../../../../../adapters/blocks/buscar-web.ts";
 import { calcular } from "../../../../../adapters/blocks/calcular.ts";
 import { escribir } from "../../../../../adapters/blocks/escribir.ts";
+import { pensar } from "../../../../../adapters/blocks/pensar.ts";
 import { createLeerDocumento } from "../../../../../adapters/blocks/leer-documento.ts";
 import { CollectingRunEvents } from "../../../../../adapters/events/collect.ts";
 import { MiniMaxLLM, readMiniMaxConfig } from "../../../../../adapters/llm/minimax.ts";
@@ -31,7 +32,7 @@ export async function POST(request: Request, { params }: Context) {
         documents.push(await storage.upload({ name: file.name, contentType: file.type, bytes: new Uint8Array(await file.arrayBuffer()) }, { userId, runId, agentId, stepId: step.id }));
       }
       const events = new CollectingRunEvents(); let first = true;
-      const blocks = [escribir, calcular, createBuscarWeb(readBraveSearchConfig()), createLeerDocumento(createStoredDocumentSource(storage, new Map(documents.map((document) => [document.stepId, document]))))];
+      const blocks = [pensar, escribir, calcular, createBuscarWeb(readBraveSearchConfig()), createLeerDocumento(createStoredDocumentSource(storage, new Map(documents.map((document) => [document.stepId, document]))))];
       const execution = await RunAgent(agentId, userId, input, { repo, events, newId: () => { if (first) { first = false; return runId; } return crypto.randomUUID(); }, llm: new MiniMaxLLM(readMiniMaxConfig()), blocks, currentDate: new Date().toISOString().slice(0, 10) });
       return { execution, events };
     });

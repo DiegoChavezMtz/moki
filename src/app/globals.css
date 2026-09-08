@@ -1,10 +1,10 @@
 :root {
   /* Colores de referencia de marca/MokiLogo2.png; el original se conserva. */
-  --color-brand-lime: #a8f000;
+  --color-brand-lime: #b3f344;
   --color-brand-pink: #ff1455;
-  --color-ink: #101010;
-  --color-paper: #ffffff;
-  --color-muted: #565656;
+  --color-ink: #20231c;
+  --color-paper: #f7f7f0;
+  --color-muted: #62675b;
   --font-body: "Montserrat Variable", Montserrat, Arial, sans-serif;
 }
 
