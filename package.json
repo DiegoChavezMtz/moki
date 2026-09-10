@@ -5,6 +5,7 @@
   "scripts": {
     "test:auth": "node --test tests/auth/*.test.ts",
     "test:builder": "node --test tests/builder/*.test.ts",
+    "test:integration:db": "node --conditions=react-server --env-file=.env --test tests/integration/*.test.ts",
     "typecheck:core": "tsc --project tsconfig.core.json",
     "test": "node --conditions=react-server --test tests/core/*.test.ts tests/adapters/*.test.ts",
     "dev": "next dev",
@@ -26,7 +27,8 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
-    "unpdf": "^1.8.1"
+    "unpdf": "^1.8.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

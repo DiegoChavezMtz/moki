@@ -16,3 +16,32 @@ export class ValidationError extends Error {
     this.issues = issues;
   }
 }
+
+/** Mensajes públicos controlados; nunca contienen la respuesta ni secretos del proveedor. */
+export class ModelLimitError extends Error {
+  readonly code: "tokens" | "timeout";
+  constructor(code: "tokens" | "timeout") {
+    super(code === "tokens"
+      ? "El modelo no terminó la respuesta porque alcanzó el límite de tokens. Simplifica la tarea de este bloque o solicita ampliar el límite de respuesta."
+      : "El modelo agotó el tiempo de espera. Intenta de nuevo; si se repite, solicita ampliar el tiempo de espera.");
+    this.name = "ModelLimitError";
+    this.code = code;
+  }
+}
+
+const BLOCK_RESPONSE_MESSAGES = {
+  missing_tool: "El modelo respondió sin solicitar la herramienta obligatoria de este bloque.",
+  multiple_tools: "El modelo solicitó varias herramientas; este bloque admite una sola llamada.",
+  invalid_tool: "El modelo solicitó una herramienta que no corresponde a este bloque o una llamada inválida.",
+  unexpected_tool: "El modelo intentó usar una herramienta cuando debía entregar la respuesta del bloque.",
+  empty_response: "El modelo no devolvió una respuesta utilizable para este bloque.",
+  invalid_response: "El modelo devolvió contenido incompatible con este bloque.",
+  incomplete: "El modelo no terminó la respuesta del bloque.",
+} as const;
+
+export class BlockResponseError extends Error {
+  readonly code: keyof typeof BLOCK_RESPONSE_MESSAGES;
+  constructor(code: keyof typeof BLOCK_RESPONSE_MESSAGES) {
+    super(BLOCK_RESPONSE_MESSAGES[code]); this.name = "BlockResponseError"; this.code = code;
+  }
+}

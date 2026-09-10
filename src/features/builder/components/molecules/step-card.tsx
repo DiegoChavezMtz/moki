@@ -17,7 +17,7 @@ export function StepCard({ step, index, count, busy, active, error, onInstructio
     <div className="step-body"><div className="step-head"><span className="step-type-label">{index + 1}. {block.label}</span>{finalResponse ? <span className="final-response-badge" aria-hidden="true">Salida final</span> : null}<button className="icon-btn" disabled={busy} onClick={onRemove} aria-label={`Eliminar bloque ${index + 1}`}>×</button></div>
       <label className="sr-only" htmlFor={`instruction-${step.id}`}>Instrucciones del bloque {index + 1}</label>
       <textarea id={`instruction-${step.id}`} className="step-instruction" value={step.instruction} disabled={busy} onChange={(event) => onInstruction(event.target.value)} placeholder={block.placeholder} aria-invalid={!!error} aria-describedby={error ? `error-${step.id}` : undefined} />
-      {step.blockType === "leer-documento" && <label className="document-input">Documento para este bloque<input type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" disabled={busy} onChange={(event) => onFile?.(event.target.files?.[0] ?? null)} />{file && <small>{file.name}</small>}</label>}
+      {step.blockType === "leer-documento" && <label className="document-input">Documento para este bloque<input type="file" accept=".pdf,.docx,.txt,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" disabled={busy} onChange={(event) => onFile?.(event.target.files?.[0] ?? null)} />{file && <small>{file.name}</small>}</label>}
       {error && <p id={`error-${step.id}`} className="field-error">{error}</p>}
     </div>
   </article>;

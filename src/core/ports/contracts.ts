@@ -1,4 +1,4 @@
-import type { Agent, Profile, RunEvent } from "../domain/models.ts";
+import type { Agent, Profile, RunEvent, TokenUsage } from "../domain/models.ts";
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type JsonSchema = boolean | { [keyword: string]: JsonValue };
@@ -10,7 +10,7 @@ export type Message =
   | { role: "tool"; content: string; toolCallId: string };
 /** providerState es opaco para el core; permite que adaptadores con continuidad firmada reanuden herramientas. */
 export type LLMResponse = { content: string; toolCalls?: ToolCall[]; providerState?: unknown };
-export type LLMRequest = { system: string; messages: Message[]; tools?: ToolSchema[]; outputSchema?: JsonSchema; providerState?: unknown };
+export type LLMRequest = { onUsage?: (usage: TokenUsage | null) => void; system: string; messages: Message[]; tools?: ToolSchema[]; requiredTool?: string; outputSchema?: JsonSchema; providerState?: unknown };
 export interface LLMProvider { complete(req: LLMRequest): Promise<LLMResponse>; }
 export type ExecutionContext = { runId: string; agentId: string; stepId: string; userId: string };
 export interface BlockPlugin {

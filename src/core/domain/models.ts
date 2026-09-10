@@ -9,7 +9,9 @@ export type Agent = {
   forkedFrom?: string;
 };
 export type Run = { id: string; agentId: string; status: "running" | "done" | "failed"; input: string };
+export type TokenUsage = { inputTokens: number; outputTokens: number };
 export type RunEvent =
+  | { type: "model.usage"; runId: string; stepId: string; stepNumber: number; purpose: "block" | "memory"; usage: TokenUsage | null }
   | { type: "step.started"; runId: string; stepId: string }
   | { type: "tool.called"; runId: string; stepId: string; tool: string; input: unknown }
   | { type: "tool.result"; runId: string; stepId: string; output: unknown }

@@ -1,3 +1,18 @@
+export type UsageCall = { stepId: string; stepNumber: number; purpose: "block" | "memory"; usage: { inputTokens: number; outputTokens: number } | null };
+export class AgentRunError extends Error {
+  readonly usage: UsageCall[];
+  constructor(message: string, usage: UsageCall[]) { super(message); this.name = "AgentRunError"; this.usage = usage; }
+}
+export function usageFromEvents(events: unknown): UsageCall[] {
+  if (!Array.isArray(events)) return [];
+  return events.flatMap((event): UsageCall[] => {
+    if (!isRecord(event) || event.type !== "model.usage" || typeof event.stepId !== "string" || !Number.isSafeInteger(event.stepNumber) || (event.stepNumber as number) < 1 || (event.purpose !== "block" && event.purpose !== "memory")) return [];
+    const value = event.usage;
+    const valid = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0;
+    const usage = isRecord(value) && valid(value.inputTokens) && valid(value.outputTokens) ? { inputTokens: value.inputTokens, outputTokens: value.outputTokens } : null;
+    return [{ stepId: event.stepId, stepNumber: event.stepNumber as number, purpose: event.purpose, usage }];
+  });
+}
 export type SearchSource = { title: string; url: string; age?: string; pageAge?: string };
 type RunPayload = { output?: unknown; run?: { status?: unknown }; events?: unknown };
 
@@ -16,12 +31,13 @@ function sourcesFromEvents(payload: RunPayload): SearchSource[] {
 }
 
 /** Ejecuta un agente guardado mediante la ruta autenticada, con archivos por bloque de lectura. */
-export async function runSavedAgent(id: string, input: string, documents: ReadonlyMap<string, File>): Promise<{ output: string | null; sources: SearchSource[] }> {
+export async function runSavedAgent(id: string, input: string, documents: ReadonlyMap<string, File>): Promise<{ output: string | null; sources: SearchSource[]; usage: UsageCall[] }> {
   const form = new FormData(); form.set("input", input); documents.forEach((file, stepId) => form.set(`document:${stepId}`, file));
   const response = await fetch(`/api/agents/${id}/run`, { method: "POST", body: form });
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new Error(typeof body === "object" && body !== null && "error" in body && typeof body.error === "string" ? body.error : "No pudimos ejecutar el agente.");
   if (!isRecord(body)) throw new Error("No pudimos leer la respuesta de la ejecución.");
-  const failed = failedRunReason(body); if (failed) throw new Error(failed);
-  return { output: typeof body.output === "string" ? body.output : null, sources: sourcesFromEvents(body) };
+  const usage = usageFromEvents(body.events);
+  const failed = failedRunReason(body); if (failed) throw new AgentRunError(failed, usage);
+  return { output: typeof body.output === "string" ? body.output : null, sources: sourcesFromEvents(body), usage };
 }

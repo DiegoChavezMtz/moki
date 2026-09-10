@@ -1,13 +1,15 @@
 "use client";
+import { AgentRunError, type UsageCall } from "../../../shared/services/agent-run.ts";
 import { useEffect, useRef, useState } from "react";
 import { deleteAgent, listAgents, saveAgent } from "../services/agents.ts";
 import { currentUser } from "../../../shared/services/auth";
-import { runSavedAgent, type SearchSource } from "../../../shared/services/agent-run.ts";
+import type { SearchSource } from "../../../shared/services/agent-run.ts";
 import { logout } from "../../../shared/services/auth";
+import { saveAndRunAgent } from "../services/execution.ts";
 import { useRouter } from "next/navigation";
 import type { Agent } from "../../../core/domain/models.ts";
 import { hasErrors, moveStep, validateDraft, type BlockType, type Draft, type DraftErrors } from "../utils/chain.ts";
-export type ChatMessage = { role: "user" | "assistant"; text: string; sources?: SearchSource[] };
+export type ChatMessage = { role: "user" | "assistant"; text: string; sources?: SearchSource[]; usage?: UsageCall[] };
 const initialMessage: ChatMessage = { role: "assistant", text: "Arma tu cadena y pruébala con un caso real. La respuesta se genera al ejecutar el agente." };
 
 export function useBuilder() {
@@ -85,23 +87,23 @@ export function useBuilder() {
     if (run.current) return;
     const next = validateDraft(draft, "test"); setErrors(next);
     if (hasErrors(next)) { setNotice(next.chain || "Completa las instrucciones de los bloques señalados antes de probar."); return; }
+    const saveErrors = validateDraft(draft, "save"); setErrors(saveErrors);
+    if (hasErrors(saveErrors)) { setNotice("Agrega título y descripción antes de ejecutar el agente."); return; }
     const missingDocument = draft.steps.find((step) => step.blockType === "leer-documento" && !documents.has(step.id));
     if (missingDocument) { setNotice(`Carga un documento para el bloque ${draft.steps.indexOf(missingDocument) + 1}.`); return; }
+    const caseInput = input.trim() || "Caso de prueba de ejemplo";
     setNotice(""); const controller = new AbortController(); run.current = controller; setBusy(true);
-    setMessages((values) => [...values, { role: "user", text: input.trim() || "Caso de prueba de ejemplo" }]); setInput("");
     try {
-      let executionId = savedId;
-      if (!executionId) {
-        const saveErrors = validateDraft(draft, "save"); setErrors(saveErrors);
-        if (hasErrors(saveErrors)) { setNotice("Agrega título y descripción antes de ejecutar el agente."); return; }
-        executionId = crypto.randomUUID();
-        await saveAgent({ id: executionId, ...draft }, false);
-        setSavedId(executionId); setSavedOwnerId(ownerId);
-      }
-      const result = await runSavedAgent(executionId, input.trim() || "Caso de prueba de ejemplo", documents);
-      setMessages((values) => [...values, { role: "assistant", text: result.output ?? "La ejecución no produjo una respuesta.", ...(result.sources.length ? { sources: result.sources } : {}) }]);
+      const id = savedId ?? crypto.randomUUID();
+      const execution = await saveAndRunAgent({ id, ...draft }, !!savedId, caseInput, documents);
+      setSavedId(execution.agent.id); setSavedOwnerId(execution.agent.ownerId);
+      setMessages((values) => [...values, { role: "user", text: caseInput }, { role: "assistant", usage: execution.result.usage, text: execution.result.output ?? "La ejecución no produjo una respuesta.", ...(execution.result.sources.length ? { sources: execution.result.sources } : {}) }]);
+      setInput("");
     } catch (error) {
-      if (!controller.signal.aborted) setNotice(error instanceof Error ? error.message : "No pudimos ejecutar el agente. Inténtalo de nuevo.");
+      if (!controller.signal.aborted) {
+        setNotice(error instanceof Error ? error.message : "No pudimos ejecutar el agente. Inténtalo de nuevo.");
+        if (error instanceof AgentRunError) setMessages((values) => [...values, { role: "user", text: caseInput }, { role: "assistant", text: error.message, usage: error.usage }]);
+      }
     } finally {
       if (!controller.signal.aborted) { setBusy(false); setActiveId(null); }
       run.current = null;

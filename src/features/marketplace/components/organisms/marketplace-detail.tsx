@@ -1,12 +1,13 @@
 "use client";
 
+import { TokenUsageDetails } from "../../../../shared/components/token-usage-details";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { MarketplaceAgent } from "../../../../app/api/marketplace/shared.ts";
 import { MarkdownContent } from "../../../../shared/components/markdown-content";
 import { currentUser } from "../../../../shared/services/auth.ts";
-import { runSavedAgent, type SearchSource } from "../../../../shared/services/agent-run.ts";
+import { AgentRunError, runSavedAgent, type UsageCall, type SearchSource } from "../../../../shared/services/agent-run.ts";
 import { blockCatalog } from "../../../../shared/utils/block-catalog.ts";
 import { forkMarketplaceAgent, getMarketplaceAgent } from "../../services/marketplace.ts";
 import logo from "../../../../../marca/MokiLogo2-transparente.png";
@@ -18,6 +19,7 @@ export function MarketplaceDetail({ agentId }: { agentId: string }) {
   const [input, setInput] = useState("");
   const [documents, setDocuments] = useState<Map<string, File>>(new Map());
   const [output, setOutput] = useState("");
+  const [usage, setUsage] = useState<UsageCall[] | null>(null);
   const [sources, setSources] = useState<SearchSource[]>([]);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -43,13 +45,15 @@ export function MarketplaceDetail({ agentId }: { agentId: string }) {
     if (!agent || busy) return;
     const missing = agent.steps.find((step) => step.blockType === "leer-documento" && !documents.has(step.id));
     if (missing) { setNotice(`Carga un documento para el bloque ${agent.steps.indexOf(missing) + 1}.`); return; }
-    setBusy(true); setNotice(""); setOutput(""); setSources([]);
+    setBusy(true); setNotice(""); setOutput(""); setSources([]); setUsage(null);
     try {
       const result = await runSavedAgent(agent.id, input.trim() || "Caso de prueba de ejemplo", documents);
       setOutput(result.output ?? "La ejecución no produjo una respuesta.");
       setSources(result.sources);
+      setUsage(result.usage);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "No pudimos ejecutar este agente.");
+      if (error instanceof AgentRunError) setUsage(error.usage);
     } finally { setBusy(false); }
   }
 
@@ -99,7 +103,7 @@ export function MarketplaceDetail({ agentId }: { agentId: string }) {
             return <li key={step.id} className={finalResponse ? "agent-chain-final" : ""}>
               <span className="agent-chain-number">{index + 1}</span>
               <span className="agent-chain-icon" style={{ background: block?.color ?? "#6b6862" }} aria-hidden="true">{block?.icon ?? "•"}</span>
-              <div><div className="agent-chain-title"><strong>{block?.label ?? step.blockType}</strong>{finalResponse ? <span>Salida final</span> : null}</div><p>{step.instruction}</p>{step.blockType === "leer-documento" ? <label className="detail-document-input">Documento para este paso<input type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" disabled={busy} onChange={(event) => document(step.id, event.target.files?.[0] ?? null)} />{documents.get(step.id) ? <small>{documents.get(step.id)?.name}</small> : <small>PDF, DOCX o TXT · hasta 20 MB</small>}</label> : null}</div>
+              <div><div className="agent-chain-title"><strong>{block?.label ?? step.blockType}</strong>{finalResponse ? <span>Salida final</span> : null}</div><p>{step.instruction}</p>{step.blockType === "leer-documento" ? <label className="detail-document-input">Documento para este paso<input type="file" accept=".pdf,.docx,.txt,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain" disabled={busy} onChange={(event) => document(step.id, event.target.files?.[0] ?? null)} />{documents.get(step.id) ? <small>{documents.get(step.id)?.name}</small> : <small>PDF, DOCX, TXT o XLSX · hasta 20 MB</small>}</label> : null}</div>
             </li>;
           })}
         </ol>
@@ -112,6 +116,7 @@ export function MarketplaceDetail({ agentId }: { agentId: string }) {
         <textarea id="marketplace-test-input" value={input} onChange={(event) => setInput(event.target.value)} disabled={busy} placeholder="Por ejemplo: resume las noticias relevantes de esta semana…" />
         <button className="detail-run-button" onClick={() => void run()} disabled={busy}>{busy ? "Ejecutando agente…" : "Probar este agente"}<span aria-hidden="true">→</span></button>
         {notice ? <p role="status" className="detail-notice">{notice}</p> : null}
+        {usage !== null ? <TokenUsageDetails calls={usage} /> : null}
         {output ? <article className="marketplace-output detail-output"><div className="detail-output-heading"><p className="marketplace-eyebrow">Resultado</p><h2>Respuesta del agente</h2></div><MarkdownContent content={output} />{sources.length ? <section><strong>Fuentes consultadas</strong><ul>{sources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a><span>{source.pageAge ?? source.age ?? "Sin fecha verificable"}</span></li>)}</ul></section> : null}</article> : null}
       </section>
     </div>

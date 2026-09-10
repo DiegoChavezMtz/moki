@@ -15,7 +15,8 @@ export class FakeLLM implements LLMProvider {
   readonly responses: (LLMResponse | Error)[];
   constructor(responses: (LLMResponse | Error)[]) { this.responses = responses; }
   async complete(request: LLMRequest): Promise<LLMResponse> {
-    this.requests.push(structuredClone(request));
+    const snapshot = { ...request }; delete snapshot.onUsage;
+    this.requests.push(structuredClone(snapshot));
     const response = this.responses.shift();
     if (!response) throw new Error("El falso LLM no tiene respuestas configuradas");
     if (response instanceof Error) throw response;

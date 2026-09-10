@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import * as XLSX from "xlsx";
 import { createLeerDocumento, MAX_DOCUMENT_BYTES, MAX_PDF_PAGES, readExecutionDocument } from "../../src/adapters/blocks/leer-documento.ts";
 import { createStoredDocumentSource, executionDocumentPath, withExecutionDocumentCleanup, type ExecutionDocumentStorage, type StoredExecutionDocument } from "../../src/adapters/persistence/execution-documents.ts";
 
@@ -53,10 +54,26 @@ test("Leer documento acepta PDF de hasta 100 páginas y DOCX mediante extractore
   assert.deepEqual(docx, { name: "informe.docx", format: "docx", text: "Texto del DOCX" });
 });
 
+test("Leer documento extrae las hojas y celdas de un XLSX real", async () => {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["Empresa", "Ventas"], ["Moki", 120]]), "Resumen");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["Pendiente"], ["Preparar demo"]]), "Tareas");
+  const bytes = new Uint8Array(XLSX.write(workbook, { bookType: "xlsx", type: "array" }) as ArrayBuffer);
+
+  const output = await readExecutionDocument({ name: "reporte.xlsx", contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes });
+
+  assert.equal(output.format, "xlsx");
+  assert.equal(output.sheets, 2);
+  assert.match(output.text, /Hoja: Resumen/);
+  assert.match(output.text, /Moki,120/);
+  assert.match(output.text, /Hoja: Tareas/);
+  assert.match(output.text, /Preparar demo/);
+});
+
 test("Leer documento rechaza formatos, tamaño y PDFs que exceden el límite", async () => {
-  await assert.rejects(readExecutionDocument({ name: "archivo.csv", contentType: "text/csv", bytes: new Uint8Array([1]) }), /PDF, DOCX o TXT/);
-  await assert.rejects(readExecutionDocument({ name: "vacio.txt", contentType: "text/plain", bytes: new Uint8Array() }), /PDF, DOCX o TXT/);
-  await assert.rejects(readExecutionDocument({ name: "grande.txt", contentType: "text/plain", bytes: new Uint8Array(MAX_DOCUMENT_BYTES + 1) }), /PDF, DOCX o TXT/);
+  await assert.rejects(readExecutionDocument({ name: "archivo.csv", contentType: "text/csv", bytes: new Uint8Array([1]) }), /PDF, DOCX, TXT o XLSX/);
+  await assert.rejects(readExecutionDocument({ name: "vacio.txt", contentType: "text/plain", bytes: new Uint8Array() }), /PDF, DOCX, TXT o XLSX/);
+  await assert.rejects(readExecutionDocument({ name: "grande.txt", contentType: "text/plain", bytes: new Uint8Array(MAX_DOCUMENT_BYTES + 1) }), /PDF, DOCX, TXT o XLSX/);
   await assert.rejects(
     readExecutionDocument({ name: "largo.pdf", contentType: "application/pdf", bytes: new Uint8Array([1]) }, { extractPdf: async () => ({ pages: MAX_PDF_PAGES + 1, text: "" }) }),
     /100 páginas/,

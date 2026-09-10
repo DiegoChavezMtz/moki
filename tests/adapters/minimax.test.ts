@@ -5,7 +5,7 @@ import { MINIMAX_ANTHROPIC_BASE_URL, MiniMaxLLM } from "../../src/adapters/llm/m
 import { escribir } from "../../src/adapters/blocks/escribir.ts";
 
 const request = { system: "Política del core", messages: [{ role: "user" as const, content: "Redacta un saludo." }] };
-function setup(overrides: Record<string, unknown> = {}, status = 200) {
+function setup(overrides: Record<string, unknown> = {}, status = 200, config: { maxTokens?: number; timeoutMs?: number } = {}) {
   const requests: Record<string, unknown>[] = [];
   const client = new Anthropic({
     apiKey: "test-key", maxRetries: 0,
@@ -19,7 +19,7 @@ function setup(overrides: Record<string, unknown> = {}, status = 200) {
       }), { status, headers: { "content-type": "application/json" } });
     },
   });
-  return { llm: new MiniMaxLLM({ apiKey: "test-key", model: "MiniMax-M2.7" }, client), requests };
+  return { llm: new MiniMaxLLM({ apiKey: "test-key", model: "MiniMax-M2.7", ...config }, client), requests };
 }
 
 test("Escribir implementa el catálogo sin herramientas", () => {
@@ -35,7 +35,7 @@ test("MiniMax usa su endpoint compatible con Anthropic", () => {
 test("SDK transmite el modelo, la política y los mensajes; devuelve solo texto", async () => {
   const { llm, requests } = setup();
   assert.deepEqual(await llm.complete(request), { content: "Hola, bienvenido." });
-  assert.deepEqual(requests, [{ model: "MiniMax-M2.7", max_tokens: 2048, system: request.system, messages: request.messages }]);
+  assert.deepEqual(requests, [{ model: "MiniMax-M2.7", max_tokens: 8192, system: request.system, messages: request.messages }]);
 });
 
 test("MiniMax no expone su razonamiento y conserva el texto final", async () => {
@@ -100,5 +100,46 @@ test("tras un resultado de herramienta pide texto final sin habilitar otra llama
 test("propaga el fallo HTTP al core sin reintentar", async () => {
   const { llm, requests } = setup({ type: "error", error: { type: "overloaded_error", message: "Test" } }, 529);
   await assert.rejects(llm.complete(request));
+  assert.equal(requests.length, 1);
+});
+
+
+test("permite configurar tokens y rechaza límites inválidos", async () => {
+  const { llm, requests } = setup({}, 200, { maxTokens: 16384 });
+  await llm.complete(request);
+  assert.equal(requests[0].max_tokens, 16384);
+  for (const value of [0, -1, 1.5, NaN, Infinity]) {
+    assert.throws(() => setup({}, 200, { maxTokens: value }));
+    assert.throws(() => setup({}, 200, { timeoutMs: value }));
+  }
+});
+
+test("distingue el tiempo agotado sin exponer detalles del proveedor", async () => {
+  const client = new Anthropic({ apiKey: "test", maxRetries: 0 });
+  // Reproduce el rechazo asíncrono que entrega el SDK cuando vence su timeout.
+  client.messages.create = (() => Promise.reject(new Anthropic.APIConnectionTimeoutError())) as unknown as typeof client.messages.create;
+  const llm = new MiniMaxLLM({ apiKey: "test", model: "test" }, client);
+  await assert.rejects(llm.complete(request), /agotó el tiempo/);
+});
+
+test("reporta consumo incluyendo caché antes de rechazar una respuesta truncada", async () => {
+  const { llm } = setup({ stop_reason: "max_tokens", usage: { input_tokens: 100, output_tokens: 8192, cache_read_input_tokens: 20, cache_creation_input_tokens: 30 } });
+  const usage: unknown[] = [];
+  await assert.rejects(llm.complete({ ...request, onUsage: (value) => usage.push(value) }), /límite de tokens/);
+  assert.deepEqual(usage, [{ inputTokens: 150, outputTokens: 8192 }]);
+});
+
+test("consumo ausente no se convierte en cero", async () => {
+  const { llm } = setup({ usage: null });
+  const usage: unknown[] = [];
+  await llm.complete({ ...request, onUsage: (value) => usage.push(value) });
+  assert.deepEqual(usage, [null]);
+});
+
+test("exige la herramienta indicada y desactiva llamadas paralelas", async () => {
+  const { llm, requests } = setup({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t", name: "buscar", input: { query: "Bimbo" } }] });
+  await llm.complete({ ...request, tools: [{ name: "buscar", description: "Busca", inputSchema: {} }], requiredTool: "buscar" });
+  assert.deepEqual(requests[0].tool_choice, { type: "tool", name: "buscar", disable_parallel_tool_use: true });
+  await assert.rejects(llm.complete({ ...request, requiredTool: "inexistente" }), /no está disponible/);
   assert.equal(requests.length, 1);
 });
